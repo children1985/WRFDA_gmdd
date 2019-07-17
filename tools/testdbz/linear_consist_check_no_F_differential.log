@@ -1,0 +1,73 @@
+ test begin
+ filename:./test_data.dat
+tc max,min: 0.30887E+02-0.27201E+02
+p  max,min: 0.99294E+03 0.33383E+03
+qv max,min: 0.19235E-01 0.00000E+00
+qc max,min: 0.31695E-02 0.00000E+00
+qr max,min: 0.90153E-02 0.00000E+00
+qi max,min: 0.28662E-04 0.00000E+00
+qs max,min: 0.45610E-02 0.00000E+00
+qg max,min: 0.67480E-02 0.00000E+00
+qr mean 0.12571E-03
+qs mean 0.20793E-03
+qg mean 0.53821E-04
+   249052.4       177011.7       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.89948601  0.88107789  1.40698218 0.10000E+01 0.10390E+07 0.93458E+06 0.17701E+06
+ dbz gradient check:   1362580.       1362580.    
+   116850.4       97209.16       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.96595407  0.96611685  1.20205164 0.50000E+00 0.10390E+07 0.10036E+07 0.97209E+05
+ dbz gradient check:   426920.2       426920.3    
+   51883.22       49551.24       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99302810  0.99346948  1.04706192 0.25000E+00 0.10390E+07 0.10318E+07 0.49551E+05
+ dbz gradient check:   112455.5       112455.5    
+   25099.89       24579.67       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99820328  0.99848688  1.02116489 0.12500E+00 0.10390E+07 0.10371E+07 0.24580E+05
+ dbz gradient check:   27808.85       27808.85    
+   12588.68       12387.81       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99950522  0.99961251  1.01621544 0.62500E-01 0.10390E+07 0.10385E+07 0.12388E+05
+ dbz gradient check:   7028.463       7028.463    
+   6238.593       6144.917       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99983102  0.99990135  1.01524448 0.31250E-01 0.10390E+07 0.10388E+07 0.61449E+04
+ dbz gradient check:   1738.053       1738.053    
+   3143.425       3096.952       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99994725  0.99997401  1.01500583 0.15625E-01 0.10390E+07 0.10390E+07 0.30970E+04
+ dbz gradient check:   439.2790       439.2790    
+   1559.532       1536.229       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99997479  0.99999237  1.01516867 0.78125E-02 0.10390E+07 0.10390E+07 0.15362E+04
+ dbz gradient check:   108.6283       108.6283    
+   785.9097       774.2380       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999100  0.99999750  1.01507509 0.39062E-02 0.10390E+07 0.10390E+07 0.77424E+03
+ dbz gradient check:   27.45494       27.45494    
+   389.9159       384.0567       34507.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999487  0.99999917  1.01525605 0.19531E-02 0.10390E+07 0.10390E+07 0.38406E+03
+ dbz gradient check:   6.789269       6.789269    
+   196.4760       193.5591       34504.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999791  0.99999952  1.01506984 0.97656E-03 0.10390E+07 0.10390E+07 0.19356E+03
+ dbz gradient check:   1.715933       1.715933    
+   97.48312       96.01337       34498.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999869  0.99999976  1.01530778 0.48828E-03 0.10390E+07 0.10390E+07 0.96014E+02
+ dbz gradient check:  0.4243293      0.4243293    
+   49.11977       48.38881       34484.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999940  0.99999988  1.01510596 0.24414E-03 0.10390E+07 0.10390E+07 0.48390E+02
+ dbz gradient check:  0.1072458      0.1072458    
+   24.37086       24.00236       34463.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999964  0.99999988  1.01535273 0.12207E-03 0.10390E+07 0.10390E+07 0.24004E+02
+ dbz gradient check:  2.6520584E-02  2.6520584E-02
+   12.27976       12.09657       34426.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999976  1.00000000  1.01514387 0.61035E-04 0.10390E+07 0.10390E+07 0.12097E+02
+ dbz gradient check:  6.7028650E-03  6.7028650E-03
+   6.092900       5.999641       34306.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999970  0.99999988  1.01554406 0.30518E-04 0.10390E+07 0.10390E+07 0.60009E+01
+ dbz gradient check:  1.6575365E-03  1.6575365E-03
+   3.070487       3.023103       34137.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999976  0.99999994  1.01567411 0.15259E-04 0.10390E+07 0.10390E+07 0.30244E+01
+ dbz gradient check:  4.1892906E-04  4.1892906E-04
+   1.523896       1.498392       33659.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999988  0.99999988  1.01702034 0.76294E-05 0.10390E+07 0.10390E+07 0.15002E+01
+ dbz gradient check:  1.0359603E-04  1.0359603E-04
+  0.7681491      0.7533048       32941.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999988  1.00000000  1.01970553 0.38147E-05 0.10390E+07 0.10390E+07 0.75609E+00
+ dbz gradient check:  2.6183066E-05  2.6183066E-05
+  0.3829407      0.3703559       31319.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  1.00000000  0.99999994  1.03398025 0.19073E-05 0.10390E+07 0.10390E+07 0.37506E+00
+ dbz gradient check:  6.4747519E-06  6.4747519E-06

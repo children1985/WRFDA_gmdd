@@ -1,0 +1,282 @@
+module radartype
+
+  integer           :: nradar
+  integer           :: ndata
+  type rdr
+    real,allocatable  :: rf(:),hgt(:)
+    real              :: lat,lon
+    integer           :: nlev
+  end type rdr
+  type(rdr),allocatable :: rdrdata(:)
+
+end module radartype
+
+module modeltype
+
+  integer,parameter  :: nvar=10
+  character(len=16)  :: varname(nvar)
+  integer            :: dim(nvar,3)
+  type var3dtype
+    real,allocatable :: val(:,:,:)
+  end type var3dtype
+  type(var3dtype)   :: var3d(nvar)
+
+  data varname/'XLONG','XLAT','PH','PHB','T','P','PB','QRAIN','QSNOW','QGRAUP'/
+
+end module modeltype
+
+program rdr2wrf
+
+  use radartype
+  use modeltype
+  implicit none
+  
+  include 'netcdf.inc'
+
+  character(len=256) :: filepath,rdrpath
+  real,allocatable   :: vartem(:,:,:)
+
+  logical            :: alive
+  integer            :: i,j,k
+  integer            :: scanopt
+
+
+  integer           :: temi01,temi02,temi03,temi04,temi05
+  real              :: temr01,temr02,temr03,temr04,temr05 
+
+
+!--------------------------------------------------------!
+!                                                        ! 
+!                     Read wrf data                      !
+!                                                        !
+!--------------------------------------------------------!
+
+  inquire(file='./config.dat',exist=alive)
+  if(alive) then
+    open(1,file='config.dat')
+    read(1,*) filepath
+    read(1,*) rdrpath
+    close(1)
+  else
+    print*,"need config.dat,stop"
+    stop
+  endif
+  print('("read in file:",A)'),trim(filepath)
+
+  allocate(vartem(1,1,1))
+
+  do i=1,nvar
+    print*,trim(varname(i))
+    scanopt=1
+    call  readwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),vartem,scanopt)
+    allocate(var3d(i)%val(dim(i,1),dim(i,2),dim(i,3)))
+    scanopt=0
+    call  readwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),var3d(i)%val,scanopt)
+  enddo 
+!--------------------------------------------------------!
+!                                                        ! 
+!                     Read obs data                      !
+!                                                        !
+!--------------------------------------------------------!
+
+   print('("read in file:",A)'),trim(rdrpath)
+   call readrdr(rdrpath,1,rdrdata) 
+   if(allocated(rdrdata))deallocate(rdrdata)
+   allocate(rdrdata(ndata))
+   print*,ndata
+   call readrdr(rdrpath,0,rdrdata)
+   print*,"finish reading obs"
+
+!--------------------------------------------------------!
+!                                                        ! 
+!               interpolate obs to wrf grid              !
+!                                                        !
+!--------------------------------------------------------!
+
+
+
+
+
+
+
+end program rdr2wrf
+
+
+
+subroutine readrdr(rdrpath,scanopt)
+
+use radartype
+implicit none
+
+integer                   :: scanopt
+character(len=256)        :: rdrpath
+logical                   :: alive
+
+integer                   :: temi01,temi02,temi03,temi04,temi05
+real                      :: temr01,temr02,temr03,temr04,temr05
+character(len=80)         :: temc01,temc02,temc03
+character(len=256)        :: str01,str02
+integer                   :: i,j,k,n
+integer                   :: nlev
+
+   inquire(file=trim(rdrpath),exist=alive)
+   if(.not.alive) stop
+   open(1,file=trim(rdrpath))
+
+   if(scanopt==1) then
+     read(1,'(14X,I)') nradar
+     print*,"the number of radars:",nradar
+     i=1
+     ndata=0
+     do while(i<=nradar)
+       read(1,'(A256)') str01
+       if(str01(1:5)=='RADAR') then
+         read(str01,'(a5,2x,a12,2(f8.3,2x),f8.1,2x,a19,2i6)')    &
+                  temc01(1:5),temc01(1:12),temr01,temr01,temr01  &
+                 ,temc01(1:19),temi01,temi02
+         ndata=ndata+temi01
+         print*,"the number of data for radar",i," is ",temi01
+         i=i+1
+       endif 
+     enddo
+     print*,"total number of data is ",ndata
+     close(1)
+     return
+   endif
+   
+   n=1
+   do while(n<=ndata)
+     read(1,'(A256)') str01
+     if(str01(1:12)=='FM-128 RADAR') then
+       read(str01,'(a12,3x,a19,2x,2(f12.3,2x),f8.1,2x,i6)')          &
+            temc01(1:12),temc01(1:19),rdrdata(n)%lat,rdrdata(n)%lon  &
+           ,temr01,rdrdata(n)%nlev 
+       if(allocated(rdrdata(n)%rf)) deallocate(rdrdata(n)%rf)
+       allocate(rdrdata(n)%rf(rdrdata(n)%nlev))
+       if(allocated(rdrdata(n)%hgt)) deallocate(rdrdata(n)%hgt)
+       allocate(rdrdata(n)%hgt(rdrdata(n)%nlev))
+       do k=1,rdrdata(n)%nlev
+         read(1,'(3x,f12.1,2(f12.3,i4,f12.3,2x))')  rdrdata(n)%hgt(k)  &
+                           ,temr01,temi01,temr01                       &
+                           ,rdrdata(n)%rf(k),temi01,temr01
+  !       print*,rdrdata(n)%lat,rdrdata(n)%lon,rdrdata(n)%hgt(k),rdrdata(n)%rf(k)
+       enddo
+       n=n+1
+     endif
+   enddo
+   close(1)
+end subroutine readrdr
+
+subroutine readwrf(filepath,varname,nx,ny,nz,var,scanopt)
+
+implicit none
+
+include 'netcdf.inc'
+
+integer            :: scanopt
+integer            :: nx,ny,nz
+character(len=256) :: filepath
+logical            :: alive
+integer            :: ncid4,varid4
+character(len=16)  :: varname
+integer            :: ivtype,nDims,dimids(10),nAtts, dims(3) 
+integer            :: istart(4),iend(4)
+real               :: var(nx,ny,nz)
+
+real,allocatable   :: vartem(:,:,:)
+integer            :: i,j,k
+integer            :: status
+integer            :: nxmin,nymin,nzmin
+
+   inquire(file=trim(filepath),exist=alive) 
+   if(.not.alive) stop
+   status=nf_open(trim(filepath),nf_write,ncid4) 
+   status=nf_inq_varid(ncid4,trim(varname),varid4) 
+   dims =1 !first give all dimension value 1
+   status=nf_inq_var(ncid4,varid4,trim(varname),ivtype,nDims,dimids,nAtts)
+   do i=1,nDims
+     status=nf_inq_dimlen(ncid4,dimids(i),dims(i)) !selectively give dimension value
+   enddo
+   istart        = 1 !first give all dimension value 1
+   iend          = 1 !first give all dimension value 1
+   do i = 1,nDims 
+     iend(i)= dims(i) !selectively give dimension value
+   enddo
+   if(scanopt==1) then
+     print*,iend
+     nx=iend(1)
+     ny=iend(2)
+     nz=iend(3) 
+     status=nf_close(ncid4)
+     return
+   endif
+   if(nx.ne.iend(1).or.ny.ne.iend(2).or.nz.ne.iend(3)) then
+     print*,"dimension not match"
+     print*,"nx,ny,nz",nx,ny,nz
+     print*,"iend(1),iend(2),iend(3)",iend(1),iend(2),iend(3)
+   endif
+
+   if(allocated(vartem)) deallocate(vartem)
+   allocate(vartem(iend(1),iend(2),iend(3)))
+   
+   status=nf_get_vara_real(ncid4,varid4,istart,iend,vartem)
+
+   status=nf_close(ncid4)
+   print*,"max,min:",maxval(maxval(maxval(vartem,1),1),1),minval(minval(minval(vartem,1),1),1)
+
+
+   var=vartem
+   deallocate(vartem)
+
+end subroutine readwrf
+
+subroutine wrtwrf(filepath,varname,nx,ny,nz,var)
+
+implicit none
+
+include 'netcdf.inc'
+
+integer            :: nx,ny,nz
+character(len=256) :: filepath
+logical            :: alive
+integer            :: ncid4,varid4
+character(len=16)  :: varname
+integer            :: ivtype,nDims,dimids(10),nAtts, dims(3)
+integer            :: istart(4),iend(4)
+real               :: var(nx,ny,nz)
+
+integer            :: i,j,k
+integer            :: status
+
+
+   inquire(file=trim(filepath),exist=alive)
+   if(.not.alive) stop
+   status=nf_open(trim(filepath),nf_write,ncid4)
+   status=nf_inq_varid(ncid4,trim(varname),varid4)
+   dims =1 !first give all dimension value 1
+   status=nf_inq_var(ncid4,varid4,trim(varname),ivtype,nDims,dimids,nAtts)
+   do i=1,nDims
+     status=nf_inq_dimlen(ncid4,dimids(i),dims(i)) !selectively give dimension value
+   enddo
+   istart        = 1 !first give all dimension value 1
+   iend          = 1 !first give all dimension value 1
+   do i = 1,nDims
+     iend(i)= dims(i) !selectively give dimension value
+   enddo
+   if(nx.ne.iend(1).or.ny.ne.iend(2).or.nz.ne.iend(3)) then
+     print*,"dimension not match"
+     print*,"nx,ny,nz",nx,ny,nz
+     print*,"iend(1),iend(2),iend(3)",iend(1),iend(2),iend(3)
+   endif
+
+   status=nf_put_vara_real(ncid4,varid4,istart,iend,var)
+
+   status=nf_close(ncid4)
+
+
+end subroutine wrtwrf
+
+
+
+
+

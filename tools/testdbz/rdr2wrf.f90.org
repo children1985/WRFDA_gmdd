@@ -1,0 +1,545 @@
+module radartype
+
+  integer           :: nradar
+  integer           :: ndata
+  type rdr
+    real,allocatable  :: rf(:),hgt(:)
+    real              :: lat,lon
+    integer           :: nlev
+	real              :: maxcol
+  end type rdr
+  type(rdr),allocatable :: rdrdata(:)
+
+end module radartype
+
+module modeltype
+
+  integer,parameter  :: nvar=10
+  character(len=16)  :: varname(nvar)
+  integer            :: dim(nvar,3)
+  type var3dtype
+    real,allocatable :: val(:,:,:)
+  end type var3dtype
+  type(var3dtype)   :: var3d(nvar)
+
+  data varname/'XLONG','XLAT','PH','PHB','T','P','PB','QRAIN','QSNOW','QGRAUP'/
+
+end module modeltype
+
+program rdr2wrf
+
+  use radartype
+  use modeltype
+  implicit none
+  
+  include 'netcdf.inc'
+
+  character(len=256) :: filepath,rdrpath
+  real,allocatable   :: vartem(:,:,:)
+  real,allocatable   :: rfm(:,:,:)
+
+
+  logical            :: alive,alive1,alive2
+  integer            :: i,j,k
+  integer            :: scanopt
+
+  integer            :: temi01,temi02,temi03,temi04,temi05
+  real               :: temr01,temr02,temr03,temr04,temr05 
+
+  character(len=80)  :: argc
+  real               :: ratio
+
+!--------------------------------------------------------!
+!                                                        ! 
+!                     Read wrf data                      !
+!                                                        !
+!--------------------------------------------------------!
+
+  call getarg(1,argc)
+  print*,"read in parameter",trim(argc)
+  if(trim(argc)=="") then
+    print*,"ratio is set to default value: 0.1"
+    ratio=0.1
+  else
+    print*,"ratio is read in"
+    read(argc,*) ratio
+  endif
+  print*,"ratio value of ",ratio," is used"
+
+  inquire(file='./config.dat',exist=alive)
+  inquire(file='./fg',exist=alive1)
+  inquire(file='./ob.radar',exist=alive2)  
+  if(alive1.and.alive2) then
+    filepath="fg"
+	rdrpath="ob.radar"
+  else if(alive) then
+    open(1,file='config.dat')
+    read(1,*) filepath
+    read(1,*) rdrpath
+    close(1)
+  else  
+    print*,"need config.dat or fg and ob.radar,stop"
+    stop
+  endif
+  print('("read in file:",A)'),trim(filepath)
+
+  allocate(vartem(1,1,1))
+
+  do i=1,nvar
+    print*,trim(varname(i))
+    scanopt=1
+    call  readwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),vartem,scanopt)
+    allocate(var3d(i)%val(dim(i,1),dim(i,2),dim(i,3)))
+    scanopt=0
+    call  readwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),var3d(i)%val,scanopt)
+  enddo 
+!--------------------------------------------------------!
+!                                                        ! 
+!                     Read obs data                      !
+!                                                        !
+!--------------------------------------------------------!
+
+   print('("read in file:",A)'),trim(rdrpath)
+   call readrdr(rdrpath,1,rdrdata) 
+   if(allocated(rdrdata))deallocate(rdrdata)
+   allocate(rdrdata(ndata))
+   print*,ndata
+   call readrdr(rdrpath,0,rdrdata)
+   print*,"finish reading obs"
+
+!--------------------------------------------------------!
+!                                                        ! 
+!               interpolate obs to wrf grid              !
+!                                                        !
+!--------------------------------------------------------!
+
+   if(allocated(rfm)) deallocate(rfm)
+   i=nvar
+   allocate(rfm(dim(i,1),dim(i,2),dim(i,3)))
+   rfm=0
+   call intpl_obs2wrf(rfm,dim(i,1),dim(i,2),dim(i,3))
+
+   open(1006,file='interpolate_dbz2wrf.dat',form='binary')
+   write(1006) rfm
+   close(1006)
+   print*,"rfm size",size(rfm,1),size(rfm,2),size(rfm,3)
+
+!--------------------------------------------------------!
+!                                                        ! 
+!            adjust background hydrometeors              !
+!                                                        !
+!--------------------------------------------------------!
+
+   call adj_bak_hydr(rfm,dim(nvar,1),dim(nvar,2),dim(nvar,3),ratio)
+
+
+!--------------------------------------------------------!
+!                                                        ! 
+!            update background file                      !
+!                                                        !
+!--------------------------------------------------------!   
+!    1      2      3    4    5   6    7      8      9      10
+!/'XLONG','XLAT','PH','PHB','T','P','PB','QRAIN','QSNOW','QGRAUP'/   
+  do i=8,nvar
+    print*,"writing var:",trim(varname(i))
+    scanopt=0
+	call  wrtwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),var3d(i)%val,scanopt)
+  enddo    
+   
+  print*,"Finished"
+   
+end program rdr2wrf
+
+
+subroutine adj_bak_hydr(rfm,nx,ny,nz,ratio)
+
+
+  use radartype
+  use modeltype
+  implicit none  
+
+  
+  integer                       :: nx,ny,nz
+  real                          :: rfm(nx,ny,nz)
+
+  integer                       :: i,j,k
+  
+  real                          :: maxrfcol
+  real                          :: tc,prs,theta,tk
+  real                          :: rho
+  real,parameter                :: rd=287.
+  real,parameter                :: tc0=273.15
+  real                          :: ze
+  
+  real,parameter                :: pr =3.63*1.00e+9    ! rainwater
+  real,parameter                :: psd=9.80*1.00e+8    ! dry snow
+  real,parameter                :: psw=4.26*1.00e+11   ! wet snow
+  real,parameter                :: pg =4.33*1.00e+10   ! grauple 
+  real,parameter                :: para=1.75
+  real                          :: ratio
+  
+  real                          :: qr,qs,qg   !  mixing ratio retrieved by reflectivity
+  real                          :: czr,czs,czg
+  
+!    1      2      3    4    5   6    7      8      9      10
+!/'XLONG','XLAT','PH','PHB','T','P','PB','QRAIN','QSNOW','QGRAUP'/
+  
+  do j=1,dim(nvar,2)
+    do i=1,dim(nvar,1)
+      
+	  maxrfcol=maxval(rfm(i,j,:),1)
+	  if(maxrfcol>=5.0) then
+	    
+        do k=1,dim(nvar,3)
+		  if(rfm(i,j,k)<1.0) cycle
+		  theta=var3d(5)%val(i,j,k)+300.
+		  prs=var3d(6)%val(i,j,k)+var3d(7)%val(i,j,k)
+	      tk=theta*(prs/1e5)**0.286
+		  rho=prs/(rd*tk)
+		  tc=tk-tc0
+		  ze=exp(0.1*log(10.0)*rfm(i,j,k))
+          !print('(3I6,5F16.4)'),i,j,k,tc,rho,prs,ze,rfm(i,j,k)
+		  qr=0
+		  qs=0
+		  qg=0
+          if(tc>=5.0) then
+		     qr=exp(log(ze/pr)/para)/rho			 
+          endif
+		  if(tc<5.0.and.tc>-5.0) then
+		     czr=(tc+5.0)/10.0
+			 if(tc>0) then
+			   czs=(1.0-czr)*psw/(psw+pg)
+			   czg=(1.0-czr)*pg /(psw+pg)	
+		       qr=exp(log(czr*ze/pr) /para)/rho
+		       qs=exp(log(czs*ze/psw)/para)/rho
+			   qr=exp(log(czg*ze/pg) /para)/rho				
+			 else
+			   czs=(1.0-czr)*psd/(psd+pg)
+			   czg=(1.0-czr)*pg /(psd+pg)	
+		       qr=exp(log(czr*ze/pr) /para)/rho
+		       qs=exp(log(czs*ze/psd)/para)/rho
+			   qr=exp(log(czg*ze/pg) /para)/rho				   
+			 endif
+		  endif
+          if(tc<=-5.0) then
+            czs = psd/(psd+pg)
+            czg = 1.0 - czs		  
+		    qs=exp(log(czs*ze/psd)/para)/rho
+			qr=exp(log(czg*ze/pg) /para)/rho	
+          endif		  
+	      !print('(3I6," qrm,qro ",2F12.6," qsm,qso ",2F12.6," qgm,qgo ",2F12.6)'), i,j,k, &
+		  !      var3d(8) %val(i,j,k)*1e3,qr*1e3,                                          &
+		  !		 var3d(9) %val(i,j,k)*1e3,qs*1e3,                                          &
+		  !		 var3d(10)%val(i,j,k)*1e3,qg*1e3
+		  
+		  var3d(8) %val(i,j,k)=qr*ratio+(1-ratio)*var3d(8) %val(i,j,k)
+		  var3d(9) %val(i,j,k)=qs*ratio+(1-ratio)*var3d(9) %val(i,j,k)
+		  var3d(10)%val(i,j,k)=qg*ratio+(1-ratio)*var3d(10)%val(i,j,k)
+		  
+	    enddo
+
+      endif	
+	
+	enddo
+  enddo	
+
+
+
+end subroutine adj_bak_hydr
+
+
+subroutine smth(var,nx,ny,nz)
+
+implicit none
+
+integer      :: nx,ny,nz
+real         :: var
+
+integer      :: i,j,kk
+real         :: s=0.5
+
+
+
+
+
+
+
+end subroutine smth
+
+
+subroutine intpl_obs2wrf(var,nx,ny,nz) 
+
+  use radartype
+  use modeltype
+  implicit none  
+
+  integer            :: nx,ny,nz
+  real               :: var(nx,ny,nz)
+
+  real               :: weia,weib
+  real               :: zp
+  real               :: g=9.8
+  real               :: dh,dv,d
+  integer            :: i,j,k,n,kk
+  real               :: thres_dh=3000.0
+  real               :: thres_dv=500.0
+  
+  print*,"interpolate obs to wrf grid"
+
+  do k=1,nz
+    print*,"processing model level",k
+    !do j=ny/2-50,ny/2+50
+    !  do i=nx/2-50,nx/2+50
+    
+    do j=1,ny
+      do i=1,nx
+        !                   PH               +           PHB        
+        zp= 0.5*(sum(var3d(3)%val(i,j,k:k+1))+sum(var3d(4)%val(i,j,k:k+1)))/g
+        if(zp>16e3) cycle
+        !print('(A,3I6,3F12.3)'),"i,j,k,zp,lon,lat",i,j,k,zp,var3d(2)%val(i,j,1),var3d(1)%val(i,j,1) 
+        n=1
+        weia=0.0
+        weib=0.0
+        do while(n<=ndata)
+          if(abs(var3d(2)%val(i,j,1)-rdrdata(n)%lat)>0.1.or.  &
+             abs(var3d(1)%val(i,j,1)-rdrdata(n)%lon)>0.1.or.  &
+			 rdrdata(n)%maxcol<0.0) then
+            n=n+1
+            cycle
+          endif
+          dh=dstn(var3d(2)%val(i,j,1),var3d(1)%val(i,j,1),zp   &
+                 ,rdrdata(n)%lat,rdrdata(n)%lon,zp             & 
+                 )            
+          if(dh>thres_dh) then
+            n=n+1
+            cycle
+          endif
+          do kk=1,rdrdata(n)%nlev
+            if(abs(zp-rdrdata(n)%hgt(kk))>thres_dv) cycle
+            if(rdrdata(n)%rf(kk)<0.0) cycle 
+            d=dstn(var3d(2)%val(i,j,1),var3d(1)%val(i,j,1),zp          &
+                  ,rdrdata(n)%lat,rdrdata(n)%lon,rdrdata(n)%hgt(kk)    &
+                  )
+            weia=weia+rdrdata(n)%rf(kk)*(1./d)**2
+            weib=weib+(1.0/d)**2
+          enddo
+          n=n+1
+        enddo
+        if(weib>0.0) then
+          var(i,j,k)=weia/weib 
+          !if(var(i,j,k)>20.0)print*,i,j,k,var(i,j,k) 
+        endif
+      enddo
+    enddo
+  enddo
+ 
+
+  contains
+
+  real function dstn(lat1,lon1,z1,lat2,lon2,z2) 
+
+    implicit none
+
+    real      :: lat1,lon1,lat2,lon2,z1,z2
+    real      :: earthr=6371e3
+    real      :: dishorz,disvert
+    real      :: c
+    real      :: pi
+
+    pi=2*asin(1.0)
+
+    !C = sin(MLatA)*sin(MLatB)*cos(MLonA-MLonB) + cos(MLatA)*cos(MLatB)
+    !Distance = R*Arccos(C)*Pi/180
+
+    c=sin(lat1)*sin(lat2)*cos(lon1-lon2)+cos(lat1)*cos(lat2)    
+    dishorz=earthr*acos(c)*pi/180.0
+
+    disvert=abs(z1-z2)
+
+    dstn=(dishorz**2+disvert**2)**0.5
+
+  end function dstn
+
+end subroutine intpl_obs2wrf
+
+
+
+subroutine readrdr(rdrpath,scanopt)
+
+use radartype
+implicit none
+
+integer                   :: scanopt
+character(len=256)        :: rdrpath
+logical                   :: alive
+
+integer                   :: temi01,temi02,temi03,temi04,temi05
+real                      :: temr01,temr02,temr03,temr04,temr05
+character(len=80)         :: temc01,temc02,temc03
+character(len=256)        :: str01,str02
+integer                   :: i,j,k,n
+integer                   :: nlev
+
+   inquire(file=trim(rdrpath),exist=alive)
+   if(.not.alive) stop
+   open(1,file=trim(rdrpath))
+
+   if(scanopt==1) then
+     read(1,'(14X,I)') nradar
+     print*,"the number of radars:",nradar
+     i=1
+     ndata=0
+     do while(i<=nradar)
+       read(1,'(A256)') str01
+       if(str01(1:5)=='RADAR') then
+         read(str01,'(a5,2x,a12,2(f8.3,2x),f8.1,2x,a19,2i6)')    &
+                  temc01(1:5),temc01(1:12),temr01,temr01,temr01  &
+                 ,temc01(1:19),temi01,temi02
+         ndata=ndata+temi01
+         print*,"the number of data for radar",i," is ",temi01
+         i=i+1
+       endif 
+     enddo
+     print*,"total number of data is ",ndata
+     close(1)
+     return
+   endif
+   
+   n=1
+   do while(n<=ndata)
+     read(1,'(A256)') str01
+     if(str01(1:12)=='FM-128 RADAR') then
+       read(str01,'(a12,3x,a19,2x,2(f12.3,2x),f8.1,2x,i6)')          &
+            temc01(1:12),temc01(1:19),rdrdata(n)%lat,rdrdata(n)%lon  &
+           ,temr01,rdrdata(n)%nlev 
+       if(allocated(rdrdata(n)%rf)) deallocate(rdrdata(n)%rf)
+       allocate(rdrdata(n)%rf(rdrdata(n)%nlev))
+       if(allocated(rdrdata(n)%hgt)) deallocate(rdrdata(n)%hgt)
+       allocate(rdrdata(n)%hgt(rdrdata(n)%nlev))
+       do k=1,rdrdata(n)%nlev
+         read(1,'(3x,f12.1,2(f12.3,i4,f12.3,2x))')  rdrdata(n)%hgt(k)  &
+                           ,temr01,temi01,temr01                       &
+                           ,rdrdata(n)%rf(k),temi01,temr01
+  !       print*,rdrdata(n)%lat,rdrdata(n)%lon,rdrdata(n)%hgt(k),rdrdata(n)%rf(k)
+       enddo
+	   rdrdata(n)%maxcol=maxval(rdrdata(n)%rf(:),1)
+	   
+       n=n+1
+     endif
+   enddo
+   close(1)
+end subroutine readrdr
+
+subroutine readwrf(filepath,varname,nx,ny,nz,var,scanopt)
+
+implicit none
+
+include 'netcdf.inc'
+
+integer            :: scanopt
+integer            :: nx,ny,nz
+character(len=256) :: filepath
+logical            :: alive
+integer            :: ncid4,varid4
+character(len=16)  :: varname
+integer            :: ivtype,nDims,dimids(10),nAtts, dims(3) 
+integer            :: istart(4),iend(4)
+real               :: var(nx,ny,nz)
+
+real,allocatable   :: vartem(:,:,:)
+integer            :: i,j,k
+integer            :: status
+integer            :: nxmin,nymin,nzmin
+
+   inquire(file=trim(filepath),exist=alive) 
+   if(.not.alive) stop
+   status=nf_open(trim(filepath),nf_write,ncid4) 
+   status=nf_inq_varid(ncid4,trim(varname),varid4) 
+   dims =1 !first give all dimension value 1
+   status=nf_inq_var(ncid4,varid4,trim(varname),ivtype,nDims,dimids,nAtts)
+   do i=1,nDims
+     status=nf_inq_dimlen(ncid4,dimids(i),dims(i)) !selectively give dimension value
+   enddo
+   istart        = 1 !first give all dimension value 1
+   iend          = 1 !first give all dimension value 1
+   do i = 1,nDims 
+     iend(i)= dims(i) !selectively give dimension value
+   enddo
+   if(scanopt==1) then
+     print*,iend
+     nx=iend(1)
+     ny=iend(2)
+     nz=iend(3) 
+     status=nf_close(ncid4)
+     return
+   endif
+   if(nx.ne.iend(1).or.ny.ne.iend(2).or.nz.ne.iend(3)) then
+     print*,"dimension not match"
+     print*,"nx,ny,nz",nx,ny,nz
+     print*,"iend(1),iend(2),iend(3)",iend(1),iend(2),iend(3)
+   endif
+
+   if(allocated(vartem)) deallocate(vartem)
+   allocate(vartem(iend(1),iend(2),iend(3)))
+   
+   status=nf_get_vara_real(ncid4,varid4,istart,iend,vartem)
+
+   status=nf_close(ncid4)
+   print*,"max,min:",maxval(maxval(maxval(vartem,1),1),1),minval(minval(minval(vartem,1),1),1)
+
+
+   var=vartem
+   deallocate(vartem)
+
+end subroutine readwrf
+
+subroutine wrtwrf(filepath,varname,nx,ny,nz,var)
+
+implicit none
+
+include 'netcdf.inc'
+
+integer            :: nx,ny,nz
+character(len=256) :: filepath
+logical            :: alive
+integer            :: ncid4,varid4
+character(len=16)  :: varname
+integer            :: ivtype,nDims,dimids(10),nAtts, dims(3)
+integer            :: istart(4),iend(4)
+real               :: var(nx,ny,nz)
+
+integer            :: i,j,k
+integer            :: status
+
+
+   inquire(file=trim(filepath),exist=alive)
+   if(.not.alive) stop
+   status=nf_open(trim(filepath),nf_write,ncid4)
+   status=nf_inq_varid(ncid4,trim(varname),varid4)
+   dims =1 !first give all dimension value 1
+   status=nf_inq_var(ncid4,varid4,trim(varname),ivtype,nDims,dimids,nAtts)
+   do i=1,nDims
+     status=nf_inq_dimlen(ncid4,dimids(i),dims(i)) !selectively give dimension value
+   enddo
+   istart        = 1 !first give all dimension value 1
+   iend          = 1 !first give all dimension value 1
+   do i = 1,nDims
+     iend(i)= dims(i) !selectively give dimension value
+   enddo
+   if(nx.ne.iend(1).or.ny.ne.iend(2).or.nz.ne.iend(3)) then
+     print*,"dimension not match"
+     print*,"nx,ny,nz",nx,ny,nz
+     print*,"iend(1),iend(2),iend(3)",iend(1),iend(2),iend(3)
+   endif
+
+   status=nf_put_vara_real(ncid4,varid4,istart,iend,var)
+
+   status=nf_close(ncid4)
+
+
+end subroutine wrtwrf
+
+
+
+
+

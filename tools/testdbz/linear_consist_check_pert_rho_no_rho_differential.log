@@ -1,0 +1,213 @@
+ test begin
+ filename:./test_data.dat
+tc max,min: 0.30887E+02-0.27201E+02
+p  max,min: 0.99294E+03 0.33383E+03
+qv max,min: 0.19235E-01 0.00000E+00
+qc max,min: 0.31695E-02 0.00000E+00
+qr max,min: 0.90153E-02 0.00000E+00
+qi max,min: 0.28662E-04 0.00000E+00
+qs max,min: 0.45610E-02 0.00000E+00
+qg max,min: 0.67480E-02 0.00000E+00
+qr mean 0.12571E-03
+qs mean 0.20793E-03
+qg mean 0.53821E-04
+ tc_prt max min   122.3802      -115.1723    
+ qv_prt max min  5.9641242E-02 -1.7147597E-02
+ qr_prt max min  1.3856808E-02 -7.1893162E-03
+ qs_prt max min  1.4452946E-02 -5.0058938E-03
+ qg_prt max min  1.0795399E-02 -5.5385674E-03
+ done adding perturbation
+ ------------------------------------------------
+   250435.2       184266.2       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.90088755  0.88211268  1.35909426 0.10000E+01 0.10390E+07 0.93604E+06 0.18427E+06
+ dbz gradient check:   1524404.       1524404.    
+ tc_prt max min   61.14455      -57.59088    
+ qv_prt max min  2.9757217E-02 -1.6964246E-02
+ qr_prt max min  7.5536142E-03 -6.4081559E-03
+ qs_prt max min  7.0660315E-03 -4.1180411E-03
+ qg_prt max min  4.9994471E-03 -5.5385674E-03
+ done adding perturbation
+ ------------------------------------------------
+   117470.4       99341.41       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.96638590  0.96650529  1.18249178 0.50000E+00 0.10390E+07 0.10041E+07 0.99341E+05
+ dbz gradient check:   449615.0       449615.0    
+ tc_prt max min   30.59505      -28.79308    
+ qv_prt max min  1.4910311E-02 -1.5348076E-02
+ qr_prt max min  3.4642019E-03 -3.5340402E-03
+ qs_prt max min  3.6132366E-03 -2.6087549E-03
+ qg_prt max min  2.6988497E-03 -2.9281650E-03
+ done adding perturbation
+ ------------------------------------------------
+   52179.95       50376.29       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99315280  0.99360144  1.03580379 0.25000E+00 0.10390E+07 0.10319E+07 0.50376E+05
+ dbz gradient check:   116382.0       116382.0    
+ tc_prt max min   15.28614      -14.39772    
+ qv_prt max min  7.4393041E-03 -7.5674285E-03
+ qr_prt max min  1.8884036E-03 -1.6537969E-03
+ qs_prt max min  1.7665079E-03 -1.6941053E-03
+ qg_prt max min  1.2498618E-03 -1.5136603E-03
+ done adding perturbation
+ ------------------------------------------------
+   25251.11       24963.68       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99824589  0.99852616  1.01151395 0.12500E+00 0.10390E+07 0.10372E+07 0.24964E+05
+ dbz gradient check:   28723.59       28723.59    
+ tc_prt max min   7.648763      -7.198269    
+ qv_prt max min  3.7275776E-03 -3.8370190E-03
+ qr_prt max min  8.6605048E-04 -8.8351005E-04
+ qs_prt max min  9.0330915E-04 -6.5218873E-04
+ qg_prt max min  6.7471241E-04 -7.3204126E-04
+ done adding perturbation
+ ------------------------------------------------
+   12663.59       12576.73       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99952060  0.99963361  1.00690639 0.62500E-01 0.10390E+07 0.10385E+07 0.12577E+05
+ dbz gradient check:   7246.444       7246.444    
+ tc_prt max min   3.821534      -3.599430    
+ qv_prt max min  1.8598260E-03 -1.8918571E-03
+ qr_prt max min  4.7210089E-04 -4.1344922E-04
+ qs_prt max min  4.4162697E-04 -4.2352633E-04
+ qg_prt max min  3.1246545E-04 -3.7841508E-04
+ done adding perturbation
+ ------------------------------------------------
+   6276.903       6238.150       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99983746  0.99990761  1.00621235 0.31250E-01 0.10390E+07 0.10388E+07 0.62381E+04
+ dbz gradient check:   1793.170       1793.170    
+ tc_prt max min   1.912191      -1.799567    
+ qv_prt max min  9.3189441E-04 -9.5925474E-04
+ qr_prt max min  2.1651262E-04 -2.2087751E-04
+ qs_prt max min  2.2582729E-04 -1.6304718E-04
+ qg_prt max min  1.6867810E-04 -1.8301031E-04
+ done adding perturbation
+ ------------------------------------------------
+   3162.155       3143.944       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99994981  0.99997860  1.00579226 0.15625E-01 0.10390E+07 0.10390E+07 0.31439E+04
+ dbz gradient check:   452.8724       452.8724    
+ tc_prt max min  0.9553835     -0.8998575    
+ qv_prt max min  4.6495651E-04 -4.7296428E-04
+ qr_prt max min  1.1802522E-04 -1.0336230E-04
+ qs_prt max min  1.1040674E-04 -1.0588158E-04
+ qg_prt max min  7.8116362E-05 -9.4603769E-05
+ done adding perturbation
+ ------------------------------------------------
+   1569.171       1559.469       34510.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99997598  0.99999398  1.00622129 0.78125E-02 0.10390E+07 0.10390E+07 0.15595E+04
+ dbz gradient check:   112.0658       112.0658    
+ tc_prt max min  0.4780477     -0.4498918    
+ qv_prt max min  2.3297360E-04 -2.3981369E-04
+ qr_prt max min  5.4128155E-05 -5.5219378E-05
+ qs_prt max min  5.6456822E-05 -4.0761795E-05
+ qg_prt max min  4.2169526E-05 -4.5752578E-05
+ done adding perturbation
+ ------------------------------------------------
+   790.5918       785.9728       34505.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999160  0.99999857  1.00587678 0.39062E-02 0.10390E+07 0.10390E+07 0.78598E+03
+ dbz gradient check:   28.30561       28.30561    
+ tc_prt max min  0.2388459     -0.2249644    
+ qv_prt max min  1.1623913E-04 -1.1824107E-04
+ qr_prt max min  2.9506306E-05 -2.5840576E-05
+ qs_prt max min  2.7601685E-05 -2.6470396E-05
+ qg_prt max min  1.9529090E-05 -2.3650942E-05
+ done adding perturbation
+ ------------------------------------------------
+   392.3227       389.8647       34509.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999517  0.99999982  1.00630474 0.19531E-02 0.10390E+07 0.10390E+07 0.38986E+03
+ dbz gradient check:   7.004064       7.004064    
+ tc_prt max min  0.1195119     -0.1124730    
+ qv_prt max min  5.8243400E-05 -5.9953421E-05
+ qr_prt max min  1.3532039E-05 -1.3804844E-05
+ qs_prt max min  1.4114205E-05 -1.0190449E-05
+ qg_prt max min  1.0542381E-05 -1.1438145E-05
+ done adding perturbation
+ ------------------------------------------------
+   197.6465       196.4921       34505.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999827  1.00000000  1.00587523 0.97656E-03 0.10390E+07 0.10390E+07 0.19650E+03
+ dbz gradient check:   1.769124       1.769124    
+ tc_prt max min  5.9711471E-02 -5.6241091E-02
+ qv_prt max min  2.9059782E-05 -2.9560268E-05
+ qr_prt max min  7.3765764E-06 -6.4601440E-06
+ qs_prt max min  6.9004213E-06 -6.6175990E-06
+ qg_prt max min  4.8822726E-06 -5.9127356E-06
+ done adding perturbation
+ ------------------------------------------------
+   98.08499       97.46235       34499.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999881  0.99999982  1.00638855 0.48828E-03 0.10390E+07 0.10390E+07 0.97466E+02
+ dbz gradient check:  0.4377556      0.4377556    
+ tc_prt max min  2.9877979E-02 -2.8118238E-02
+ qv_prt max min  1.4560850E-05 -1.4988355E-05
+ qr_prt max min  3.3830097E-06 -3.4512111E-06
+ qs_prt max min  3.5285514E-06 -2.5476122E-06
+ qg_prt max min  2.6355954E-06 -2.8595362E-06
+ done adding perturbation
+ ------------------------------------------------
+   49.41283       49.12004       34485.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999964  0.99999982  1.00596058 0.24414E-03 0.10390E+07 0.10390E+07 0.49124E+02
+ dbz gradient check:  0.1105707      0.1105707    
+ tc_prt max min  1.4927868E-02 -1.4060273E-02
+ qv_prt max min  7.2649455E-06 -7.3900669E-06
+ qr_prt max min  1.8441441E-06 -1.6150360E-06
+ qs_prt max min  1.7251053E-06 -1.6543997E-06
+ qg_prt max min  1.2205682E-06 -1.4781839E-06
+ done adding perturbation
+ ------------------------------------------------
+   24.52189       24.36168       34454.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999946  0.99999988  1.00657630 0.12207E-03 0.10390E+07 0.10390E+07 0.24367E+02
+ dbz gradient check:  2.7359780E-02  2.7359784E-02
+ tc_prt max min  7.4694948E-03 -7.0295595E-03
+ qv_prt max min  3.6402125E-06 -3.7470888E-06
+ qr_prt max min  8.4575242E-07 -8.6280278E-07
+ qs_prt max min  8.8213784E-07 -6.3690305E-07
+ qg_prt max min  6.5889884E-07 -7.1488404E-07
+ done adding perturbation
+ ------------------------------------------------
+   12.35342       12.27637       34398.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999976  0.99999994  1.00627673 0.61035E-04 0.10390E+07 0.10390E+07 0.12281E+02
+ dbz gradient check:  6.9106920E-03  6.9106915E-03
+ tc_prt max min  3.7319669E-03 -3.5150682E-03
+ qv_prt max min  1.8162364E-06 -1.8475167E-06
+ qr_prt max min  4.6103602E-07 -4.0375900E-07
+ qs_prt max min  4.3127633E-07 -4.1359993E-07
+ qg_prt max min  3.0514204E-07 -3.6954597E-07
+ done adding perturbation
+ ------------------------------------------------
+   6.130173       6.087513       34309.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999970  0.99999988  1.00700772 0.30518E-04 0.10390E+07 0.10390E+07 0.60916E+01
+ dbz gradient check:  1.7099828E-03  1.7099829E-03
+ tc_prt max min  1.8673737E-03 -1.7573899E-03
+ qv_prt max min  9.1005313E-07 -9.3677221E-07
+ qr_prt max min  2.1143811E-07 -2.1570069E-07
+ qs_prt max min  2.2053446E-07 -1.5922576E-07
+ qg_prt max min  1.6472471E-07 -1.7872101E-07
+ done adding perturbation
+ ------------------------------------------------
+   3.088498       3.066130       34095.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999976  0.99999994  1.00729489 0.15259E-04 0.10390E+07 0.10390E+07 0.30703E+01
+ dbz gradient check:  4.3191877E-04  4.3191877E-04
+ tc_prt max min  9.3299174E-04 -8.7876705E-04
+ qv_prt max min  4.5405909E-07 -4.6187918E-07
+ qr_prt max min  1.1525901E-07 -1.0093975E-07
+ qs_prt max min  1.0781908E-07 -1.0339998E-07
+ qg_prt max min  7.6285509E-08 -9.2386493E-08
+ done adding perturbation
+ ------------------------------------------------
+   1.533944       1.518859       33760.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999988  1.00000000  1.00993228 0.76294E-05 0.10390E+07 0.10390E+07 0.15229E+01
+ dbz gradient check:  1.0687389E-04  1.0687389E-04
+ tc_prt max min  4.6684343E-04 -4.3934747E-04
+ qv_prt max min  2.2751328E-07 -2.3419305E-07
+ qr_prt max min  5.2859527E-08 -5.3925174E-08
+ qs_prt max min  5.5133615E-08 -3.9806441E-08
+ qg_prt max min  4.1181178E-08 -4.4680252E-08
+ done adding perturbation
+ ------------------------------------------------
+  0.7734106      0.7629797       32970.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  0.99999988  1.00000000  1.01367128 0.38147E-05 0.10390E+07 0.10390E+07 0.76756E+00
+ dbz gradient check:  2.6994921E-05  2.6994920E-05
+ tc_prt max min  2.3324793E-04 -2.1969176E-04
+ qv_prt max min  1.1351477E-07 -1.1546980E-07
+ qr_prt max min  2.8814751E-08 -2.5234938E-08
+ qs_prt max min  2.6954771E-08 -2.5849996E-08
+ qg_prt max min  1.9071377E-08 -2.3096623E-08
+ done adding perturbation
+ ------------------------------------------------
+  0.3858634      0.3743405       31365.00    
+dbz h(x+dx)/h(x),ratio,ratio2,mag_std,sum org,sum prt,sum tl  1.00000000  0.99999994  1.03078187 0.19073E-05 0.10390E+07 0.10390E+07 0.38073E+00
+ dbz gradient check:  6.6796174E-06  6.6796169E-06

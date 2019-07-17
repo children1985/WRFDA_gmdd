@@ -1,0 +1,94 @@
+read in file:wrfout_d01_2010-05-10_21:00:00
+ XLONG
+         450         450           1           1
+ max,min:  -91.67810      -102.0961    
+ XLAT
+         450         450           1           1
+ max,min:   39.40845       31.24202    
+ PH
+         450         450          52           1
+ max,min:   8329.231      -168.1148    
+ PHB
+         450         450          52           1
+ max,min:   195213.7       93.85962    
+ T
+         450         450          51           1
+ max,min:   207.5510      -15.55792    
+ P
+         450         450          51           1
+ max,min:   1717.891      -710.5547    
+ PB
+         450         450          51           1
+ max,min:   99555.20       5170.906    
+ QRAIN
+         450         450          51           1
+ max,min:  1.3828472E-02 -4.1936423E-06
+ QSNOW
+         450         450          51           1
+ max,min:  5.4957923E-03 -6.0408598E-07
+ QGRAUP
+         450         450          51           1
+ max,min:  1.2733976E-02 -1.1793761E-06
+read in file:/glade2/work/wangs/may10/radar/radar/all_with_qc_z0.1/ob.radar.20100510210000
+ the number of radars:           1
+ the number of data for radar           1  is         7681
+ total number of data is         7681
+        7681
+ finish reading obs
+ interpolate obs to wrf grid
+ processing model level           1
+ processing model level           2
+ processing model level           3
+ processing model level           4
+ processing model level           5
+ processing model level           6
+ processing model level           7
+ processing model level           8
+ processing model level           9
+ processing model level          10
+ processing model level          11
+ processing model level          12
+ processing model level          13
+ processing model level          14
+ processing model level          15
+ processing model level          16
+ processing model level          17
+ processing model level          18
+ processing model level          19
+ processing model level          20
+ processing model level          21
+ processing model level          22
+ processing model level          23
+ processing model level          24
+ processing model level          25
+ processing model level          26
+ processing model level          27
+ processing model level          28
+ processing model level          29
+ processing model level          30
+ processing model level          31
+ processing model level          32
+ processing model level          33
+ processing model level          34
+ processing model level          35
+ processing model level          36
+ processing model level          37
+ processing model level          38
+ processing model level          39
+ processing model level          40
+ processing model level          41
+ processing model level          42
+ processing model level          43
+ processing model level          44
+ processing model level          45
+ processing model level          46
+ processing model level          47
+ processing model level          48
+ processing model level          49
+ processing model level          50
+ processing model level          51
+ rfm size         450         450          51
+ writing var:QRAIN
+ writing var:QSNOW
+ writing var:QGRAUP
+ Finished

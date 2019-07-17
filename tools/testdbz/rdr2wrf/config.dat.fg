@@ -1,0 +1,6 @@
+2   ! dataype 1 obs 2 wrf 
+'./fg'  ! wrf file fg wrfvar_output
+4   ! skipn
+2   ! rfopt
+'./ob.radar'   ! obs file
+radar_fg_radzdbz  ! radar_ob_radzdbz radar_fg_radzdbz radar_an_radzdbz

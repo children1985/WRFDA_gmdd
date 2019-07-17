@@ -1,0 +1,160 @@
+program rdr2wrf
+
+  implicit none
+  
+  include 'netcdf.inc'
+
+  integer,parameter  :: nvar=8
+  character(len=256) :: filepath
+  character(len=16)  :: varname(nvar)
+  integer            :: dim(nvar,3)
+  real,allocatable   :: vartem(:,:,:)
+
+  logical            :: alive
+  integer            :: i,j,k
+  integer            :: scanopt
+
+  type var3dtype
+    real,allocatable :: val(:,:,:)
+  end type var3dtype
+
+  type(var3dtype)   :: var3d(nvar)
+
+  filepath='./wrfvar_output'
+  inquire(file='./config.dat',exist=alive)
+  if(alive) then
+    open(1,file='config.dat')
+    read(1,*) filepath
+    close(1)
+  endif
+  print('("read in file:",A128)'),trim(filepath)
+
+  data varname/'XLONG','XLAT','T','P','PB','QRAIN','QSNOW','QGRAUP'/
+  allocate(vartem(1,1,1))
+
+  do i=1,nvar
+    print*,trim(varname(i))
+    scanopt=1
+    call  readwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),vartem,scanopt)
+    allocate(var3d(i)%val(dim(i,1),dim(i,2),dim(i,3)))
+    scanopt=0
+    call  readwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),var3d(i)%val,scanopt)
+  enddo 
+
+
+end program rdr2wrf
+
+
+subroutine readwrf(filepath,varname,nx,ny,nz,var,scanopt)
+
+implicit none
+
+include 'netcdf.inc'
+
+integer            :: scanopt
+integer            :: nx,ny,nz
+character(len=256) :: filepath
+logical            :: alive
+integer            :: ncid4,varid4
+character(len=16)  :: varname
+integer            :: ivtype,nDims,dimids(10),nAtts, dims(3) 
+integer            :: istart(4),iend(4)
+real               :: var(nx,ny,nz)
+
+real,allocatable   :: vartem(:,:,:)
+integer            :: i,j,k
+integer            :: status
+integer            :: nxmin,nymin,nzmin
+
+   inquire(file=trim(filepath),exist=alive) 
+   if(.not.alive) stop
+   status=nf_open(trim(filepath),nf_write,ncid4) 
+   status=nf_inq_varid(ncid4,trim(varname),varid4) 
+   dims =1 !first give all dimension value 1
+   status=nf_inq_var(ncid4,varid4,trim(varname),ivtype,nDims,dimids,nAtts)
+   do i=1,nDims
+     status=nf_inq_dimlen(ncid4,dimids(i),dims(i)) !selectively give dimension value
+   enddo
+   istart        = 1 !first give all dimension value 1
+   iend          = 1 !first give all dimension value 1
+   do i = 1,nDims 
+     iend(i)= dims(i) !selectively give dimension value
+   enddo
+   if(scanopt==1) then
+     print*,iend
+     nx=iend(1)
+     ny=iend(2)
+     nz=iend(3) 
+     status=nf_close(ncid4)
+     return
+   endif
+   if(nx.ne.iend(1).or.ny.ne.iend(2).or.nz.ne.iend(3)) then
+     print*,"dimension not match"
+     print*,"nx,ny,nz",nx,ny,nz
+     print*,"iend(1),iend(2),iend(3)",iend(1),iend(2),iend(3)
+   endif
+
+   if(allocated(vartem)) deallocate(vartem)
+   allocate(vartem(iend(1),iend(2),iend(3)))
+   
+   status=nf_get_vara_real(ncid4,varid4,istart,iend,vartem)
+
+   status=nf_close(ncid4)
+   print*,"max,min:",maxval(maxval(maxval(vartem,1),1),1),minval(minval(minval(vartem,1),1),1)
+
+
+   var=vartem
+   deallocate(vartem)
+
+end subroutine readwrf
+
+subroutine wrtwrf(filepath,varname,nx,ny,nz,var)
+
+implicit none
+
+include 'netcdf.inc'
+
+integer            :: nx,ny,nz
+character(len=256) :: filepath
+logical            :: alive
+integer            :: ncid4,varid4
+character(len=16)  :: varname
+integer            :: ivtype,nDims,dimids(10),nAtts, dims(3)
+integer            :: istart(4),iend(4)
+real               :: var(nx,ny,nz)
+
+integer            :: i,j,k
+integer            :: status
+
+
+   inquire(file=trim(filepath),exist=alive)
+   if(.not.alive) stop
+   status=nf_open(trim(filepath),nf_write,ncid4)
+   status=nf_inq_varid(ncid4,trim(varname),varid4)
+   dims =1 !first give all dimension value 1
+   status=nf_inq_var(ncid4,varid4,trim(varname),ivtype,nDims,dimids,nAtts)
+   do i=1,nDims
+     status=nf_inq_dimlen(ncid4,dimids(i),dims(i)) !selectively give dimension value
+   enddo
+   istart        = 1 !first give all dimension value 1
+   iend          = 1 !first give all dimension value 1
+   do i = 1,nDims
+     iend(i)= dims(i) !selectively give dimension value
+   enddo
+   if(nx.ne.iend(1).or.ny.ne.iend(2).or.nz.ne.iend(3)) then
+     print*,"dimension not match"
+     print*,"nx,ny,nz",nx,ny,nz
+     print*,"iend(1),iend(2),iend(3)",iend(1),iend(2),iend(3)
+   endif
+
+   status=nf_put_vara_real(ncid4,varid4,istart,iend,var)
+
+   status=nf_close(ncid4)
+
+
+end subroutine wrtwrf
+
+
+
+
+

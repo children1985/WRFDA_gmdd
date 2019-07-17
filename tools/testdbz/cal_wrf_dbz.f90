@@ -1,0 +1,585 @@
+module radartype
+
+  integer           :: nradar
+  integer           :: ndata
+  type rdr
+    real,allocatable  :: rf(:),hgt(:)
+    real              :: lat,lon
+    integer           :: nlev
+	real              :: maxcol
+  end type rdr
+  type(rdr),allocatable :: rdrdata(:)
+
+end module radartype
+
+module modeltype
+
+  integer,parameter  :: nvar=11
+  character(len=16)  :: varname(nvar)
+  integer            :: dim(nvar,3)
+  type var3dtype
+    real,allocatable :: val(:,:,:)
+  end type var3dtype
+  type(var3dtype),target   :: var3d(nvar)
+
+  data varname/'XLONG','XLAT','PH','PHB','T','P','PB','QRAIN','QSNOW','QGRAUP','QVAPOR'/
+
+end module modeltype
+
+program rdr2wrf
+
+  use radartype
+  use modeltype
+  implicit none
+  
+  include 'netcdf.inc'
+
+  character(len=256) :: filepath,rdrpath
+  character(len=256) :: outfile,ctlfile
+  real,allocatable   :: vartem(:,:,:)
+  real,allocatable   :: rfm(:,:,:)
+  real,allocatable   :: rfo(:,:,:)
+
+  logical            :: alive,alive1,alive2
+  integer            :: i,j,k
+  integer            :: scanopt
+
+  integer            :: temi01,temi02,temi03,temi04,temi05
+  real               :: temr01,temr02,temr03,temr04,temr05 
+
+  character(len=80)  :: argc
+  character(len=1)   :: datatype_c,rfopt_c
+  real               :: ratio
+  integer            :: skipn
+  integer            :: datatype
+  integer            :: rfopt
+
+  real,dimension(1,1,1)      :: prs,tmk0,qvp0,qra0,qsn0,qgr0,qnr0,qns0,qng0
+  real,dimension(1,1,1)      :: dqr,dqs,dqg,dnr,dns,dng,dtc,dqv
+  real,dimension(1,1,1)      :: dbz_org,dbz_prt,zmm_org,zmm_prt
+  real,dimension(1,1,1)      :: dbz_lin,zmm_lin
+  real                       :: rn0_r,rn0_s,rn0_g
+  real                       :: rhos,rhog
+
+  integer,parameter          :: nzintrp=53
+  real                       :: zintrp(nzintrp)
+  real,allocatable           :: rfintrp(:,:,:)
+!--------------------------------------------------------!
+!                                                        ! 
+!                     Read wrf data                      !
+!                                                        !
+!--------------------------------------------------------!
+
+  data zintrp/ -10.00,     10.00,     31.23,     55.13,     82.15,    112.81,    147.72,    187.55, &
+    233.12,    285.31,    345.17,    413.83,    492.61,    582.93,    686.37,    804.64, &
+    939.57,   1093.09,   1267.20,   1463.89,   1685.14,   1932.85,   2208.71,   2514.21, &
+   2850.52,   3218.47,   3618.47,   4050.52,   4514.21,   5008.71,   5532.85,   6085.14, &
+   6663.89,   7267.20,   7893.09,   8539.57,   9204.64,   9886.37,  10582.93,  11292.61, &
+  12013.83,  12745.16,  13485.31,  14233.12,  14987.55,  15747.71,  16512.81,  17282.15, &
+  18055.13,  18831.23,  19610.00,  20390.00,  20780.00/
+
+
+  inquire(file='./config.dat',exist=alive)
+  if(alive) then
+    open(1,file='config.dat')
+    read(1,*) datatype  ! 1 for obs 2 for model
+    read(1,*) filepath
+    read(1,*) skipn
+    read(1,*) rfopt
+    read(1,*) rdrpath
+    read(1,*) outfile
+    close(1)
+    write(datatype_c,'(I1)') datatype
+    write(rfopt_c,'(I1)') rfopt
+  else  
+    print*,"need config.dat,stop"
+    stop
+  endif
+  print('("read in file:",A)'),trim(filepath)
+
+  allocate(vartem(1,1,1))
+
+
+!--------------------------------------------------------!
+!                                                        ! 
+!                     Read model data                    !
+!                                                        !
+!--------------------------------------------------------!
+  do i=1,nvar
+    print*,trim(varname(i))
+    scanopt=1
+    call  readwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),vartem,scanopt)
+    allocate(var3d(i)%val(dim(i,1),dim(i,2),dim(i,3)))
+    scanopt=0
+    call  readwrf(filepath,varname(i),dim(i,1),dim(i,2),dim(i,3),var3d(i)%val,scanopt)
+  enddo 
+  allocate(rfintrp(dim(nvar,1),dim(nvar,2),nzintrp))
+!--------------------------------------------------------!
+!                                                        ! 
+!                     Read obs data                      !
+!                                                        !
+!--------------------------------------------------------!
+
+  if(datatype==1) then
+     print('("read in file:",A)'),trim(rdrpath)
+     call readrdr(rdrpath,1,rdrdata) 
+     if(allocated(rdrdata))deallocate(rdrdata)
+     allocate(rdrdata(ndata))
+     print*,ndata
+     call readrdr(rdrpath,0,rdrdata)
+     print*,"finish reading obs"
+  
+!--------------------------------------------------------!
+!                                                        ! 
+!               interpolate obs to wrf grid              !
+!                                                        !
+!--------------------------------------------------------!
+
+     rfintrp=0
+     call intpl_obs2wrf(rfintrp,dim(nvar,1),dim(nvar,2),nzintrp,skipn,zintrp)
+     print*,"rfintrp max:",maxval(maxval(maxval(rfintrp,1),1),1)
+
+   !  outfile=""
+   !  outfile="interpolate_dbz2wrf_obs.dat"
+     open(1006,file=trim(outfile),form='binary')
+     write(1006) rfintrp
+   endif
+!--------------------------------------------------------!
+!                                                        ! 
+!            calculate model reflectivity                !
+!                                                        !
+!--------------------------------------------------------!
+   if(datatype==2) then
+     if(allocated(rfm)) deallocate(rfm)
+     i=nvar
+     allocate(rfm(dim(i,1),dim(i,2),dim(i,3)))
+     rfm=0
+     select case(rfopt)
+      case(1)
+        print*,"cal dbz_gao"
+        call dbz_gao(rfm,dim(nvar,1),dim(nvar,2),dim(nvar,3))
+        print*,"done cal dbz_gao"
+      case(2)
+        print*,"cal dbz_radz" 
+        do k=1,dim(nvar,3)
+          do j=1,dim(nvar,2)
+            do i=1,dim(nvar,1)
+              prs(1,1,1)=var3d(6)%val(i,j,k)+var3d(7)%val(i,j,k)
+              tmk0(1,1,1)=(var3d(5)%val(i,j,k)+300.)*(prs(1,1,1)/1e5)**0.286 
+              qvp0(1,1,1)=var3d(11)%val(i,j,k)
+              qra0(1,1,1)=var3d(8)%val(i,j,k)
+              qsn0(1,1,1)=var3d(9)%val(i,j,k)
+              qgr0(1,1,1)=var3d(10)%val(i,j,k)
+              rn0_r=8e6
+              rn0_s=3e6
+              rn0_g=4e5
+              rhos=100.0
+              rhog=400.0
+              call oudbzcalc_lin(qvp0,qra0,qsn0,qgr0,qnr0,qns0,qng0,tmk0,prs,dbz_org,     &
+                                 1,1,1,0,0,0,rn0_r,rn0_s,rn0_g,                           &
+                                 rhos,rhog,dtc,dqv,dqr,dqs,dqg,dnr,dns,dng,zmm_org,0,     &
+                                 0,i,j,k,zmm_org,0)
+              rfm(i,j,k)=dbz_org(1,1,1)
+            enddo
+          enddo
+        enddo
+        print*,"done cal dbz_radz"
+     end select
+     print*,"interpolation"
+     
+     call intpl_sigma2z(rfm,rfintrp,dim(nvar,1),dim(nvar,2),dim(nvar,3),nzintrp,zintrp)
+     print*,"done interpolation"
+
+     print*,"rfm max:",maxval(maxval(maxval(rfm,1),1),1)
+     print*,"rfintrp max:",maxval(maxval(maxval(rfintrp,1),1),1)
+  !   outfile="interpolate_dbz2wrf_"//datatype_c//'_'//rfopt_c//".dat"
+     open(1006,file=trim(outfile),form='binary')
+     write(1006) rfintrp
+     close(1006)
+   endif
+
+   print*,"write data to grads ctl file"
+   ctlfile=""
+   ctlfile=trim(outfile)//'.ctl'
+   print*,trim(ctlfile)
+   open(1001,file=trim(ctlfile))
+   write(1001,'(100a)')   'DSET    ./'//trim(outfile)
+   write(1001,'(100a)')   "TITLE   wrf output for radar dbz     "
+   write(1001,'(100a)')   "OPTIONS little_endian     "
+   write(1001,'(100a)')   "UNDEF   -999.0 "
+   write(1001,'(100a)')   "pdef      450 450 lcc  19.548  116.371    1.000    1.000  40.  10.  120.000   2000.   2000."
+   write(1001,'(100a)')   "XDEF      450  LINEAR    116.0844     0.0210"
+   write(1001,'(100a)')   "YDEF      450  LINEAR     19.4713     0.0188"
+   write(1001,'(a10,i4,100a)')    "ZDEF      ",nzintrp,"  LEVELS"
+   write(1001,'(100a)')   "   -10.00     10.00     31.23     55.13     82.15    112.81    147.72    187.55"
+   write(1001,'(100a)')   "   233.12    285.31    345.17    413.83    492.61    582.93    686.37    804.64"
+   write(1001,'(100a)')   "   939.57   1093.09   1267.20   1463.89   1685.14   1932.85   2208.71   2514.21"
+   write(1001,'(100a)')   "  2850.52   3218.47   3618.47   4050.52   4514.21   5008.71   5532.85   6085.14"
+   write(1001,'(100a)')   "  6663.89   7267.20   7893.09   8539.57   9204.64   9886.37  10582.93  11292.61"
+   write(1001,'(100a)')   " 12013.83  12745.16  13485.31  14233.12  14987.55  15747.71  16512.81  17282.15"
+   write(1001,'(100a)')   " 18055.13  18831.23  19610.00  20390.00  20780.00"
+   write(1001,'(100a)')   "TDEF       1  LINEAR  06:00Z01jun2017        60MN      "
+   write(1001,'(a10,i4)')   "VARS      ",1
+   write(1001,'(a10,i4,100a)')  "dbz       ",dim(nvar,3)," 99   reflectivity"
+   write(1001,'(100a)')   "ENDVARS        "
+   close(1001)
+   
+   print*,"Finished"
+   
+end program rdr2wrf
+
+
+subroutine dbz_gao(rfm,nx,ny,nz)
+
+
+  use radartype
+  use modeltype
+  implicit none  
+
+  
+  integer                       :: nx,ny,nz
+  real                          :: rfm(nx,ny,nz)
+
+  integer                       :: i,j,k
+  
+  real                          :: maxrfcol
+  real                          :: tc,prs,theta,tk
+  real                          :: rho
+  real,parameter                :: rd=287.
+  real,parameter                :: tc0=273.15
+  real                          :: ze
+  
+  real,parameter                :: pr =3.63*1.00e+9    ! rainwater
+  real,parameter                :: psd=9.80*1.00e+8    ! dry snow
+  real,parameter                :: psw=4.26*1.00e+11   ! wet snow
+  real,parameter                :: pg =4.33*1.00e+10   ! grauple 
+  real,parameter                :: para=1.75
+  real                          :: ratio
+  
+  real                          :: qr,qs,qg   !  mixing ratio retrieved by reflectivity
+  real                          :: czr,czs,czg
+  real                          :: zrr,zws,zds,zgr
+  real                          :: zerr,zews,zeds,zegr,rze
+
+!    1      2      3    4    5   6    7      8      9      10
+!/'XLONG','XLAT','PH','PHB','T','P','PB','QRAIN','QSNOW','QGRAUP'/
+
+  zrr = 3.63*1.00e+9  ! rainwater
+  zws = 4.26*1.00e+11 ! wet snow
+  zds = 9.80*1.00e+8  ! dry snow
+  zgr = 4.33*1.00e+10 ! graupel
+
+
+  !$OMP PARALLEL DO collapse(2) DEFAULT(shared) private(i,j,maxrfcol,k,theta,prs,tk,rho,tc,ze,qr,qs,qg,czr,czs,czg)
+  do j=1,dim(nvar,2)
+    do i=1,dim(nvar,1)      
+      !print*,"processing ",i,j,maxrfcol    
+       do k=1,dim(nvar,3)
+
+         theta=var3d(5)%val(i,j,k)+300.
+         prs=var3d(6)%val(i,j,k)+var3d(7)%val(i,j,k)
+         tk=theta*(prs/1e5)**0.286
+         rho=prs/(rd*tk)
+         tc=tk-tc0
+
+         qr=var3d(8)%val(i,j,k)
+         qs=var3d(9)%val(i,j,k)
+         qg=var3d(10)%val(i,j,k)
+
+         zerr = zrr*(rho*max(0.0,qr))**1.75
+         zews = zws*(rho*max(0.0,qs))**1.75
+         zeds = zds*(rho*max(0.0,qs))**1.75
+         zegr = zgr*(rho*max(0.0,qg))**1.75
+
+         if (tc.lt.0.0) then
+           rze = zerr + zeds + zegr
+         else
+           rze = zerr + zews + zegr
+         end if
+
+         if (rze.lt.1.0e-20) rze=1.0e-20
+         rfm(i,j,k)=max(0.0,10.0*log10(rze))
+
+        enddo
+    enddo
+  enddo
+  !$OMP END PARALLEL DO
+
+
+end subroutine dbz_gao
+
+subroutine intpl_sigma2z(vars,varz,nx,ny,nz,nzintrp,zintrp)
+
+  use modeltype
+  implicit none
+  integer            :: nx,ny,nz,nzintrp
+  real               :: vars(nx,ny,nz)
+  real               :: varz(nx,ny,nzintrp)
+  real               :: zintrp(nzintrp)
+
+  real               :: zp,zp1,zp2
+  real               :: g=9.8
+
+  integer            :: i,j,k,ii,jj,kk
+
+  print*,"in intpl_sigma2z"
+
+  varz=-999
+  do j=1,ny
+    do i=1,nx
+      if(maxval(vars(i,j,:),1)<-10.0) cycle
+      do k=1,nzintrp
+         zp=zintrp(k) 
+         zp1=0.5*(var3d(3)%val(i,j,nz)+var3d(4)%val(i,j,nz))/g
+         zp2=0.5*(var3d(3)%val(i,j,1)+var3d(4)%val(i,j,1))/g
+
+         if(zp>zp1.or.zp<=zp2) cycle
+         do kk=1,nz-1
+           zp1=0.5*(var3d(3)%val(i,j,kk)+var3d(4)%val(i,j,kk))/g
+           zp2=0.5*(var3d(3)%val(i,j,kk+1)+var3d(4)%val(i,j,kk+1))/g
+           if(zp1<zp.and.zp2>zp) then
+              varz(i,j,k)=vars(i,j,kk)
+              exit
+           endif
+         enddo ! kk
+      enddo ! k
+    enddo ! j
+  enddo ! i
+
+end subroutine intpl_sigma2z
+
+subroutine intpl_obs2wrf(var,nx,ny,nzintrp,skipn,zintrp) 
+
+  use radartype
+  use modeltype
+  implicit none  
+
+  integer            :: nx,ny,nzintrp
+  integer            :: skipn
+  real               :: var(nx,ny,nzintrp)
+  real               :: zintrp(nzintrp)
+  real               :: weia,weib
+  real               :: zp
+  real               :: g=9.8
+  real               :: dh,dv,d
+  integer            :: i,j,k,n,kk
+  real               :: thres_dh=3000.0
+  real               :: thres_dv=500.0
+  real               :: dmin,dbz_close 
+  print*,"interpolate obs to wrf grid"
+
+  var=-999
+  !!!$OMP PARALLEL DO collapse(3) DEFAULT(shared) private(i,j,k,zp,n,weia,weib,dh,kk,d)
+  do k=1,nzintrp
+    print*,"processing model level",k
+    !do j=ny/2-50,ny/2+50
+    !  do i=nx/2-50,nx/2+50
+    !$OMP PARALLEL DO collapse(2) DEFAULT(shared) private(i,j,zp,n,weia,weib,dh,kk,d) 
+    do j=1,ny
+      do i=1,nx
+        !                   PH               +           PHB        
+        zp=zintrp(k) !0.5*(sum(var3d(3)%val(i,j,k:k+1))+sum(var3d(4)%val(i,j,k:k+1)))/g
+        if(zp>16e3) cycle
+        !print('(A,3I6,3F12.3)'),"i,j,k,zp,lon,lat",i,j,k,zp,var3d(2)%val(i,j,1),var3d(1)%val(i,j,1) 
+        n=1
+        weia=0.0
+        weib=0.0
+        dmin=1e12
+        dbz_close=-999.0
+        do while(n<=ndata)
+          if(abs(var3d(2)%val(i,j,1)-rdrdata(n)%lat)>0.05.or.  &
+             abs(var3d(1)%val(i,j,1)-rdrdata(n)%lon)>0.05.or.  &
+             rdrdata(n)%maxcol<0.0) then
+             n=n+skipn
+             cycle
+          endif
+          dh=dstn(var3d(2)%val(i,j,1),var3d(1)%val(i,j,1),zp   &
+                 ,rdrdata(n)%lat,rdrdata(n)%lon,zp             & 
+                 )            
+          if(dh>thres_dh) then
+            n=n+skipn
+            cycle
+          endif
+          do kk=1,rdrdata(n)%nlev,1
+            if(abs(zp-rdrdata(n)%hgt(kk))>thres_dv) cycle
+            if(rdrdata(n)%rf(kk)<0.0) cycle 
+            d=dstn(var3d(2)%val(i,j,1),var3d(1)%val(i,j,1),zp          &
+                  ,rdrdata(n)%lat,rdrdata(n)%lon,rdrdata(n)%hgt(kk)    &
+                  )
+            if(d<dmin) then
+              dbz_close=rdrdata(n)%rf(kk)
+              dmin=d
+            endif
+            !weia=weia+rdrdata(n)%rf(kk)*(1./d)**2
+            !weib=weib+(1.0/d)**2
+          enddo
+          n=n+skipn
+        enddo
+        if(dbz_close>0.0) var(i,j,k)=dbz_close
+        !if(weib>0.0) then
+        !  var(i,j,k)=weia/weib 
+          !if(var(i,j,k)>20.0)print*,i,j,k,var(i,j,k) 
+        !endif
+      enddo
+    enddo
+    !$OMP END PARALLEL DO
+  enddo
+  !!!!$OMP END PARALLEL DO
+
+  contains
+
+  real function dstn(lat1,lon1,z1,lat2,lon2,z2) 
+
+    implicit none
+
+    real      :: lat1,lon1,lat2,lon2,z1,z2
+    real      :: earthr=6371e3
+    real      :: dishorz,disvert
+    real      :: c
+    real      :: pi
+
+    pi=2*asin(1.0)
+
+    !C = sin(MLatA)*sin(MLatB)*cos(MLonA-MLonB) + cos(MLatA)*cos(MLatB)
+    !Distance = R*Arccos(C)*Pi/180
+
+    c=sin(lat1)*sin(lat2)*cos(lon1-lon2)+cos(lat1)*cos(lat2)    
+    dishorz=earthr*acos(c)*pi/180.0
+
+    disvert=abs(z1-z2)
+
+    dstn=(dishorz**2+disvert**2)**0.5
+
+  end function dstn
+
+end subroutine intpl_obs2wrf
+
+subroutine readwrf(filepath,varname,nx,ny,nz,var,scanopt)
+
+implicit none
+
+include 'netcdf.inc'
+
+integer            :: scanopt
+integer            :: nx,ny,nz
+character(len=256) :: filepath
+logical            :: alive
+integer            :: ncid4,varid4
+character(len=16)  :: varname
+integer            :: ivtype,nDims,dimids(10),nAtts, dims(3) 
+integer            :: istart(4),iend(4)
+real               :: var(nx,ny,nz)
+
+real,allocatable   :: vartem(:,:,:)
+integer            :: i,j,k
+integer            :: status
+integer            :: nxmin,nymin,nzmin
+
+   inquire(file=trim(filepath),exist=alive) 
+   if(.not.alive) stop
+   status=nf_open(trim(filepath),nf_write,ncid4) 
+   status=nf_inq_varid(ncid4,trim(varname),varid4) 
+   dims =1 !first give all dimension value 1
+   status=nf_inq_var(ncid4,varid4,trim(varname),ivtype,nDims,dimids,nAtts)
+   do i=1,nDims
+     status=nf_inq_dimlen(ncid4,dimids(i),dims(i)) !selectively give dimension value
+   enddo
+   istart        = 1 !first give all dimension value 1
+   iend          = 1 !first give all dimension value 1
+   do i = 1,nDims 
+     iend(i)= dims(i) !selectively give dimension value
+   enddo
+   if(scanopt==1) then
+     print*,iend
+     nx=iend(1)
+     ny=iend(2)
+     nz=iend(3) 
+     status=nf_close(ncid4)
+     return
+   endif
+   if(nx.ne.iend(1).or.ny.ne.iend(2).or.nz.ne.iend(3)) then
+     print*,"dimension not match"
+     print*,"nx,ny,nz",nx,ny,nz
+     print*,"iend(1),iend(2),iend(3)",iend(1),iend(2),iend(3)
+   endif
+
+   if(allocated(vartem)) deallocate(vartem)
+   allocate(vartem(iend(1),iend(2),iend(3)))
+   
+   status=nf_get_vara_real(ncid4,varid4,istart,iend,vartem)
+
+   status=nf_close(ncid4)
+   print*,"max,min:",maxval(maxval(maxval(vartem,1),1),1),minval(minval(minval(vartem,1),1),1)
+
+
+   var=vartem
+   deallocate(vartem)
+
+end subroutine readwrf
+
+subroutine readrdr(rdrpath,scanopt)
+
+use radartype
+implicit none
+
+integer                   :: scanopt
+character(len=256)        :: rdrpath
+logical                   :: alive
+
+integer                   :: temi01,temi02,temi03,temi04,temi05
+real                      :: temr01,temr02,temr03,temr04,temr05
+character(len=80)         :: temc01,temc02,temc03
+character(len=256)        :: str01,str02
+integer                   :: i,j,k,n
+integer                   :: nlev
+
+   inquire(file=trim(rdrpath),exist=alive)
+   if(.not.alive) stop
+   open(1,file=trim(rdrpath))
+
+   if(scanopt==1) then
+     read(1,'(14X,I)') nradar
+     print*,"the number of radars:",nradar
+     i=1
+     ndata=0
+     do while(i<=nradar)
+       read(1,'(A256)') str01
+       if(str01(1:5)=='RADAR') then
+         read(str01,'(a5,2x,a12,2(f8.3,2x),f8.1,2x,a19,2i6)')    &
+                  temc01(1:5),temc01(1:12),temr01,temr01,temr01  &
+                 ,temc01(1:19),temi01,temi02
+         ndata=ndata+temi01
+         print*,"the number of data for radar",i," is ",temi01
+         i=i+1
+       endif
+     enddo
+     print*,"total number of data is ",ndata
+     close(1)
+     return
+   endif
+
+   n=1
+   do while(n<=ndata)
+     read(1,'(A256)') str01
+     if(str01(1:12)=='FM-128 RADAR') then
+       read(str01,'(a12,3x,a19,2x,2(f12.3,2x),f8.1,2x,i6)')          &
+            temc01(1:12),temc01(1:19),rdrdata(n)%lat,rdrdata(n)%lon  &
+           ,temr01,rdrdata(n)%nlev
+       if(allocated(rdrdata(n)%rf)) deallocate(rdrdata(n)%rf)
+       allocate(rdrdata(n)%rf(rdrdata(n)%nlev))
+       if(allocated(rdrdata(n)%hgt)) deallocate(rdrdata(n)%hgt)
+       allocate(rdrdata(n)%hgt(rdrdata(n)%nlev))
+       do k=1,rdrdata(n)%nlev
+         read(1,'(3x,f12.1,2(f12.3,i4,f12.3,2x))')  rdrdata(n)%hgt(k)  &
+                           ,temr01,temi01,temr01                       &
+                           ,rdrdata(n)%rf(k),temi01,temr01
+  !       print*,rdrdata(n)%lat,rdrdata(n)%lon,rdrdata(n)%hgt(k),rdrdata(n)%rf(k)
+       enddo
+       rdrdata(n)%maxcol=maxval(rdrdata(n)%rf(:),1)
+
+       n=n+1
+     endif
+   enddo
+   close(1)
+end subroutine readrdr
+
